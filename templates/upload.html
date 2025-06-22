@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>File Server - Upload & Download</title>
+  <style>
+    /* Nih tampilan dasar, biar gak jelek-jelek amat kek website jaman batu */
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #eef2f3, #dfe6e9);
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Container utama, kayak wadah buat semua elemen di tengah */
+    .container {
+      max-width: 600px;
+      margin: 4em auto;
+      background: #ffffff;
+      padding: 2em;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 1em;
+      color: #2d3436;
+    }
+
+    /* Input file, ya buat milih file lah, goblok kalo gak ngerti */
+    input[type="file"] {
+      width: 100%;
+      margin-bottom: 1em;
+    }
+
+    /* Tombol submit biar kelihatan enak dilihat */
+    input[type="submit"] {
+      background-color: #0984e3;
+      color: white;
+      border: none;
+      padding: 0.7em 1.5em;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 100%;
+      font-size: 1em;
+    }
+
+    input[type="submit"]:hover {
+      background-color: #74b9ff;
+    }
+
+    /* Progress bar buat pamerin progres upload ke user, biar gak tanya 'udah belom anjing?' */
+    .progress-container {
+      margin-top: 10px;
+      background: #dfe6e9;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 18px;
+      background: #00b894;
+      width: 0%;
+      transition: width 0.2s;
+    }
+
+    #status {
+      margin-top: 0.5em;
+      color: #636e72;
+      font-size: 0.95em;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin-top: 2em;
+    }
+
+    li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f1f2f6;
+      padding: 10px;
+      margin-bottom: 8px;
+      border-radius: 6px;
+    }
+
+    /* Tombol download biar bisa ngambil lagi file hasil upload, jangan males */
+    a.download-btn {
+      background: #00cec9;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: 0.9em;
+    }
+
+    a.download-btn:hover {
+      background: #00b894;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>📤 Upload & Download File</h2>
+
+    <!-- Form buat upload file. Simple, gak usah drama -->
+    <form id="upload-form">
+      <input type="file" name="file" id="file" multiple required />
+      <input type="submit" value="Unggah File" />
+    </form>
+
+    <!-- Progress bar buat nunjukin status upload -->
+    <div class="progress-container">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+    <p id="status"></p>
+
+    <!-- List file yang udah di-upload. Muncul dari backend pake Jinja2 -->
+    <h3>📁 File Tersimpan:</h3>
+    <ul id="file-list">
+      {% for f in files %}
+        <li>
+          <span>{{ f }}</span>
+          <a class="download-btn" href="/uploads/{{ f }}" download>Download</a>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <script>
+    // Script buat ngurus upload file tanpa reload halaman. Javascript lo ngerti kan? Masa harus diajarin satu-satu, goblok.
+    document.getElementById('upload-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const files = document.getElementById('file').files;
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        formData.append('file', files[i]); // Masukin file satu-satu ke formData
+      }
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/', true); // Kirim ke endpoint Flask, ya ke '/' yang POST itu
+
+      xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+          const percent = (e.loaded / e.total) * 100;
+          document.getElementById('progress-bar').style.width = percent + '%';
+        }
+      };
+
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          document.getElementById('status').innerText = '✅ Upload selesai!';
+          document.getElementById('progress-bar').style.width = '0%';
+
+          // Tambahin file baru ke list, biar user gak nanya "mana file gue bangsat?!"
+          const newFiles = JSON.parse(xhr.responseText);
+          const list = document.getElementById('file-list');
+          newFiles.forEach(file => {
+            const li = document.createElement('li');
+            const span = document.createElement('span');
+            span.textContent = file;
+            const a = document.createElement('a');
+            a.href = '/uploads/' + file;
+            a.textContent = 'Download';
+            a.className = 'download-btn';
+            a.download = file;
+            li.appendChild(span);
+            li.appendChild(a);
+            list.appendChild(li);
+          });
+        } else {
+          document.getElementById('status').innerText = '❌ Upload gagal! Cek servernya goblok.';
+        }
+      };
+
+      xhr.send(formData); // Kirim semua file yang udah dikumpulin. Tugas lo selesai di sini.
+    });
+  </script>
+</body>
+</html>
